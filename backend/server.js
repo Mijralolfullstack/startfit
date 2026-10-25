@@ -1,13 +1,11 @@
+// Lokal ishlab chiqish serveri: sayt + /api/konsultatsiya + bot (polling).
+// Doimiy hosting Cloudflare Pages'da (functions/ papkasi) — bu fayl faqat kompyuterda sinash uchun.
 require("dotenv").config();
 
+const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
@@ -18,75 +16,55 @@ if (!BOT_TOKEN || !CHAT_ID) {
   process.exit(1);
 }
 
-const {
-  arizaYuborish,
-  webhookOrnatish,
-  webhookHandler,
-  WEBHOOK_PATH,
-  pollingniIshgaTushirish
-} = require("./bot");
-
-// Hostingdagi ochiq manzil (Render uni o'zi beradi). Bo'lmasa — kompyuterda polling.
-const PUBLIC_URL = process.env.WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL;
-
-// Telegram webhook
-app.post(WEBHOOK_PATH, webhookHandler);
-
-// Saytdan kelgan arizani Telegramga yuborish
-app.post("/api/konsultatsiya", async (req, res) => {
-  try {
-    const { ism, tel, maqsad } = req.body || {};
-
-    if (!ism || !tel || !maqsad) {
-      return res.status(400).json({
-        success: false,
-        message: "Ma'lumotlar to'liq emas"
-      });
+// Arizalar kompyuterda oddiy JSON faylda saqlanadi
+const DB_FILE = path.join(__dirname, "arizalar.json");
+const faylStorage = {
+  async oqish() {
+    try {
+      return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+    } catch (e) {
+      return [];
     }
-
-    if (String(ism).length > 100 || String(tel).length > 30 || String(maqsad).length > 100) {
-      return res.status(400).json({
-        success: false,
-        message: "Ma'lumotlar juda uzun"
-      });
-    }
-
-    const ariza = await arizaYuborish({
-      ism: String(ism).trim(),
-      tel: String(tel).trim(),
-      maqsad: String(maqsad).trim()
-    });
-    console.log(`Ariza #${ariza.id} Telegramga yuborildi`);
-
-    res.json({
-      success: true,
-      message: "Ariza Telegramga yuborildi"
-    });
-
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({
-      success: false,
-      message: "Telegramga yuborishda xato"
-    });
+  },
+  async yozish(arizalar) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(arizalar, null, 2));
   }
-});
+};
 
-// Sayt fayllari (faqat shular — backend papkasi va .env ochilmaydi)
-const SAYT = path.join(__dirname, "..");
-app.get("/", (req, res) => res.sendFile(path.join(SAYT, "index.html")));
-app.get("/style.css", (req, res) => res.sendFile(path.join(SAYT, "style.css")));
-app.get("/script.js", (req, res) => res.sendFile(path.join(SAYT, "script.js")));
-app.use("/images", express.static(path.join(SAYT, "images")));
+async function main() {
+  const { createBot, arizaniTekshirish } = await import("../lib/arizabot.mjs");
+  const bot = createBot({ token: BOT_TOKEN, chatId: CHAT_ID, storage: faylStorage });
 
-app.get("/health", (req, res) => {
-  res.send("STARFIT server ishlayapti!");
-});
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
 
-app.listen(PORT, () => {
-  console.log(`Server http://localhost:${PORT} manzilida ishlayapti`);
-  const bot = PUBLIC_URL ? webhookOrnatish(PUBLIC_URL) : pollingniIshgaTushirish();
-  bot.catch((e) => {
-    console.error("Botni ishga tushirib bo'lmadi:", e.message);
+  // Saytdan kelgan arizani Telegramga yuborish
+  app.post("/api/konsultatsiya", async (req, res) => {
+    const { ariza, xato } = arizaniTekshirish(req.body);
+    if (xato) {
+      return res.status(400).json({ success: false, message: xato });
+    }
+
+    try {
+      const yuborilgan = await bot.arizaYuborish(ariza);
+      console.log(`Ariza #${yuborilgan.id} Telegramga yuborildi`);
+      res.json({ success: true, message: "Ariza Telegramga yuborildi" });
+    } catch (error) {
+      console.error(error.message);
+      res.status(500).json({ success: false, message: "Telegramga yuborishda xato" });
+    }
   });
-});
+
+  // Sayt fayllari (faqat public/ papkasi)
+  app.use(express.static(path.join(__dirname, "..", "public")));
+
+  app.listen(PORT, () => {
+    console.log(`Server http://localhost:${PORT} manzilida ishlayapti`);
+    bot.polling().catch((e) => {
+      console.error("Botni ishga tushirib bo'lmadi:", e.message);
+    });
+  });
+}
+
+main();

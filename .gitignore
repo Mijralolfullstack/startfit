@@ -3,3 +3,4 @@ node_modules/
 backend/arizalar.json
 Instagram.html
 Instagram_files/
+.wrangler/

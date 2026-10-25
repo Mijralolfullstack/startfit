@@ -3,24 +3,27 @@
 Fitnes va sog'lomlashtirish markazi sayti + saytdan kelgan arizalarni Telegramga yuboruvchi bot.
 
 ## Tuzilma
-- `index.html`, `style.css`, `script.js`, `images/` — sayt (glassmorphism dizayn)
-- `backend/server.js` — `POST /api/konsultatsiya` arizani qabul qiladi
-- `backend/bot.js` — Telegram bot: arizani yuboradi, Tasdiqlash/Bekor tugmalari, `/arizalar`, `/statistika`
+- `public/` — sayt (index.html, style.css, script.js, images/)
+- `functions/` — Cloudflare Pages Functions
+  - `api/konsultatsiya.js` — `POST /api/konsultatsiya`, formadagi arizani qabul qiladi
+  - `telegram/[secret].js` — Telegram webhook
+- `lib/arizabot.mjs` — bot mantiqi (Tasdiqlash/Bekor tugmalari, `/arizalar`, `/statistika`)
+- `lib/kvStorage.mjs` — arizalarni Cloudflare KV'da saqlash
+- `backend/server.js` — faqat kompyuterda sinash uchun (Express + polling)
 
-## Ishga tushirish
+## Cloudflare Pages sozlamalari
+- Build command: bo'sh
+- Build output directory: `public`
+- Environment variables (Secret): `BOT_TOKEN`, `CHAT_ID`
+- KV namespace binding: `ARIZALAR_KV`
+
+Deploydan keyin Telegram webhook bir marta o'rnatiladi (`createBot(...).webhookOrnatish("https://<loyiha>.pages.dev")`).
+
+## Kompyuterda sinash
 ```bash
 cd backend
 npm install
 cp .env.example .env   # BOT_TOKEN va CHAT_ID ni yozing
-npm start
+npm start              # http://localhost:3000
 ```
-Keyin `index.html` ni oching (masalan, Live Server orqali).
-
-Bot faqat `CHAT_ID` dagi chatga ariza yuboradi va faqat o'sha chatdagi buyruqlarga javob beradi.
-
-## Doimiy ishlashi (Render + webhook)
-1. https://render.com da GitHub orqali kiring → **New → Blueprint** → `startfit` reposini tanlang (`render.yaml` avtomatik o'qiladi).
-2. `BOT_TOKEN` va `CHAT_ID` qiymatlarini kiriting → **Apply**.
-3. Deploy tugagach server o'zi webhook o'rnatadi (`RENDER_EXTERNAL_URL` orqali). Sayt ham o'sha manzilda ochiladi.
-
-Lokal kompyuterda `npm start` polling rejimida ishlaydi. Agar hostingda webhook o'rnatilgan bo'lsa, lokal server uni buzmaydi — faqat arizalarni yuboradi.
+Webhook o'rnatilgan bo'lsa, lokal server pollingni yoqmaydi (Cloudflare'dagi botga xalaqit bermaydi).
