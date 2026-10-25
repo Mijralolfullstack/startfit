@@ -4,20 +4,18 @@ Fitnes va sog'lomlashtirish markazi sayti + saytdan kelgan arizalarni Telegramga
 
 ## Tuzilma
 - `public/` — sayt (index.html, style.css, script.js, images/)
-- `functions/` — Cloudflare Pages Functions
-  - `api/konsultatsiya.js` — `POST /api/konsultatsiya`, formadagi arizani qabul qiladi
-  - `telegram/[secret].js` — Telegram webhook
+- `worker/index.mjs` — Cloudflare Worker: sayt, `POST /api/konsultatsiya` (forma arizasi) va Telegram webhook
+- `wrangler.jsonc` — Worker sozlamalari (assets: `public/`, KV: `ARIZALAR_KV`)
 - `lib/arizabot.mjs` — bot mantiqi (Tasdiqlash/Bekor tugmalari, `/arizalar`, `/statistika`)
 - `lib/kvStorage.mjs` — arizalarni Cloudflare KV'da saqlash
 - `backend/server.js` — faqat kompyuterda sinash uchun (Express + polling)
 
-## Cloudflare Pages sozlamalari
-- Build command: bo'sh
-- Build output directory: `public`
-- Environment variables (Secret): `BOT_TOKEN`, `CHAT_ID`
-- KV namespace binding: `ARIZALAR_KV`
+## Cloudflare Workers
+- Sayt: https://startfit.yetqazibber.workers.dev
+- GitHub'ga har push'da Cloudflare o'zi qayta deploy qiladi.
+- Secrets (Settings → Variables and Secrets): `BOT_TOKEN`, `CHAT_ID`
 
-Deploydan keyin Telegram webhook bir marta o'rnatiladi (`createBot(...).webhookOrnatish("https://<loyiha>.pages.dev")`).
+Deploydan keyin Telegram webhook bir marta o'rnatiladi (`createBot(...).webhookOrnatish("https://startfit.yetqazibber.workers.dev")`).
 
 ## Kompyuterda sinash
 ```bash

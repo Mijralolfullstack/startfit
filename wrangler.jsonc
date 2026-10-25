@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "startfit",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2025-10-01",
+  // Sayt fayllari; mos fayl topilmasa so'rov Worker'ga o'tadi (/api, /telegram)
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  // Arizalar bazasi
+  "kv_namespaces": [
+    { "binding": "ARIZALAR_KV", "id": "206e14e1e0814959aed13be0225a6a16" }
+  ],
+  "observability": { "enabled": true },
+  // BOT_TOKEN va CHAT_ID — Cloudflare'da Secret sifatida (Settings → Variables and Secrets).
+  // Dashboard'da kiritilgan o'zgaruvchilar deployda o'chib ketmasin:
+  "keep_vars": true
+}
