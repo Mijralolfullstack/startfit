@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = String(process.env.CHAT_ID);
@@ -191,9 +192,16 @@ async function xabarKeldi(msg) {
   return tg("sendMessage", { chat_id: CHAT_ID, text: javob, parse_mode: "HTML" });
 }
 
-// === Long polling: Telegramdan yangilanishlarni olib turish ===
-async function botniIshgaTushirish() {
-  await tg("deleteWebhook", {});
+async function yangilanishniQaytaIshlash(u) {
+  try {
+    if (u.callback_query) await tugmaBosildi(u.callback_query);
+    else if (u.message) await xabarKeldi(u.message);
+  } catch (e) {
+    console.error("Yangilanishni qayta ishlashda xato:", e.message);
+  }
+}
+
+async function buyruqlarniOrnatish() {
   await tg("setMyCommands", {
     commands: [
       { command: "arizalar", description: "Oxirgi 10 ta ariza" },
@@ -201,7 +209,46 @@ async function botniIshgaTushirish() {
     ]
   });
   const men = await tg("getMe", {});
-  console.log(`Bot ishga tushdi: @${men.username}`);
+  return men.username;
+}
+
+// Webhook manzili va Telegram yuboradigan maxfiy kalit tokendan hosil qilinadi
+const WEBHOOK_SECRET = crypto.createHash("sha256").update(BOT_TOKEN).digest("hex");
+const WEBHOOK_PATH = `/telegram/${WEBHOOK_SECRET.slice(0, 32)}`;
+
+// === Webhook: Telegram yangilanishlarni o'zi serverga yuboradi (hosting uchun) ===
+async function webhookOrnatish(baseUrl) {
+  const username = await buyruqlarniOrnatish();
+  await tg("setWebhook", {
+    url: baseUrl.replace(/\/+$/, "") + WEBHOOK_PATH,
+    secret_token: WEBHOOK_SECRET,
+    allowed_updates: ["message", "callback_query"]
+  });
+  console.log(`Bot webhook rejimida ishga tushdi: @${username}`);
+}
+
+function webhookHandler(req, res) {
+  if (req.get("X-Telegram-Bot-Api-Secret-Token") !== WEBHOOK_SECRET) {
+    return res.sendStatus(403);
+  }
+  // Telegramga darhol javob qaytaramiz, qayta yubormasligi uchun
+  res.sendStatus(200);
+  yangilanishniQaytaIshlash(req.body);
+}
+
+// === Long polling: kompyuterda (localhost) ishlatish uchun ===
+async function pollingniIshgaTushirish() {
+  const info = await tg("getWebhookInfo", {});
+  if (info.url) {
+    console.warn(
+      "Botda webhook o'rnatilgan (hostingdagi server ishlayapti).\n" +
+      "Polling yoqilmadi — arizalar baribir Telegramga yuboriladi."
+    );
+    return;
+  }
+
+  const username = await buyruqlarniOrnatish();
+  console.log(`Bot polling rejimida ishga tushdi: @${username}`);
 
   let offset = 0;
   while (true) {
@@ -214,12 +261,7 @@ async function botniIshgaTushirish() {
 
       for (const u of yangilanishlar) {
         offset = u.update_id + 1;
-        try {
-          if (u.callback_query) await tugmaBosildi(u.callback_query);
-          else if (u.message) await xabarKeldi(u.message);
-        } catch (e) {
-          console.error("Yangilanishni qayta ishlashda xato:", e.message);
-        }
+        await yangilanishniQaytaIshlash(u);
       }
     } catch (e) {
       console.error("Polling xatosi:", e.message);
@@ -228,4 +270,10 @@ async function botniIshgaTushirish() {
   }
 }
 
-module.exports = { arizaYuborish, botniIshgaTushirish };
+module.exports = {
+  arizaYuborish,
+  webhookOrnatish,
+  webhookHandler,
+  WEBHOOK_PATH,
+  pollingniIshgaTushirish
+};

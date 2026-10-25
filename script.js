@@ -70,6 +70,10 @@
     document.getElementById('bmiJins').addEventListener('change', hisobla);
 
     // === FORMA YUBORISH ===
+// Sayt server orqali ochilsa — o'sha manzil, Live Server yoki fayldan ochilsa — lokal backend
+var API_URL = (location.protocol === 'file:' || location.port === '5500' || location.port === '5501')
+  ? 'http://localhost:3000'
+  : '';
 document.getElementById('formaBtn').addEventListener('click', async function () {
   var ism = document.getElementById('formaIsm').value.trim();
   var tel = document.getElementById('formaTel').value.trim();
@@ -100,7 +104,7 @@ document.getElementById('formaBtn').addEventListener('click', async function () 
   xato.textContent = '';
 
   try {
-    var response = await fetch('http://localhost:3000/api/konsultatsiya', {
+    var response = await fetch(API_URL + '/api/konsultatsiya', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

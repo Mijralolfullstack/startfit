@@ -17,3 +17,10 @@ npm start
 Keyin `index.html` ni oching (masalan, Live Server orqali).
 
 Bot faqat `CHAT_ID` dagi chatga ariza yuboradi va faqat o'sha chatdagi buyruqlarga javob beradi.
+
+## Doimiy ishlashi (Render + webhook)
+1. https://render.com da GitHub orqali kiring → **New → Blueprint** → `startfit` reposini tanlang (`render.yaml` avtomatik o'qiladi).
+2. `BOT_TOKEN` va `CHAT_ID` qiymatlarini kiriting → **Apply**.
+3. Deploy tugagach server o'zi webhook o'rnatadi (`RENDER_EXTERNAL_URL` orqali). Sayt ham o'sha manzilda ochiladi.
+
+Lokal kompyuterda `npm start` polling rejimida ishlaydi. Agar hostingda webhook o'rnatilgan bo'lsa, lokal server uni buzmaydi — faqat arizalarni yuboradi.

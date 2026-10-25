@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
@@ -17,7 +18,19 @@ if (!BOT_TOKEN || !CHAT_ID) {
   process.exit(1);
 }
 
-const { arizaYuborish, botniIshgaTushirish } = require("./bot");
+const {
+  arizaYuborish,
+  webhookOrnatish,
+  webhookHandler,
+  WEBHOOK_PATH,
+  pollingniIshgaTushirish
+} = require("./bot");
+
+// Hostingdagi ochiq manzil (Render uni o'zi beradi). Bo'lmasa — kompyuterda polling.
+const PUBLIC_URL = process.env.WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL;
+
+// Telegram webhook
+app.post(WEBHOOK_PATH, webhookHandler);
 
 // Saytdan kelgan arizani Telegramga yuborish
 app.post("/api/konsultatsiya", async (req, res) => {
@@ -59,13 +72,21 @@ app.post("/api/konsultatsiya", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
+// Sayt fayllari (faqat shular — backend papkasi va .env ochilmaydi)
+const SAYT = path.join(__dirname, "..");
+app.get("/", (req, res) => res.sendFile(path.join(SAYT, "index.html")));
+app.get("/style.css", (req, res) => res.sendFile(path.join(SAYT, "style.css")));
+app.get("/script.js", (req, res) => res.sendFile(path.join(SAYT, "script.js")));
+app.use("/images", express.static(path.join(SAYT, "images")));
+
+app.get("/health", (req, res) => {
   res.send("STARFIT server ishlayapti!");
 });
 
 app.listen(PORT, () => {
   console.log(`Server http://localhost:${PORT} manzilida ishlayapti`);
-  botniIshgaTushirish().catch((e) => {
+  const bot = PUBLIC_URL ? webhookOrnatish(PUBLIC_URL) : pollingniIshgaTushirish();
+  bot.catch((e) => {
     console.error("Botni ishga tushirib bo'lmadi:", e.message);
   });
 });
